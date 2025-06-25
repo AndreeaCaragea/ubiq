@@ -187,7 +187,14 @@ namespace Ubiq.Voip.Implementations.Dotnet
         }
 
         private void Update()
-        {
+        { // ********* NEW HEARTBEAT LOG *********
+            Debug.Log("Ubiq Mic Source: Update() heartbeat.");
+    // *************************************
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    // Wait for microphone permissions before processing any audio
+    if (!microphoneAuthorized)
+    // ... rest of your Update method ...
 
 #if UNITY_ANDROID && !UNITY_EDITOR
             // Wait for microphone permissions before processing any audio
