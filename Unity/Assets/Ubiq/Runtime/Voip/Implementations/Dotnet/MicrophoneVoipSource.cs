@@ -225,7 +225,7 @@ namespace Ubiq.Voip.Implementations.Dotnet
                 // ********* START OF MODIFICATION FOR UNIFIED AUDIO RECORDER *********
                 // This Debug.Log will help confirm data is flowing from Ubiq's microphone source.
                 // It will appear in your in-game VR console.
-                Debug.Log($"Ubiq Mic Source: Samples available. Length: {microphoneListener.samples.Length}, Channels: {microphoneListener.audioClip.channels}, Freq: {SAMPLE_RATE}");
+                //Debug.Log($"Ubiq Mic Source: Samples available. Length: {microphoneListener.samples.Length}, Channels: {microphoneListener.audioClip.channels}, Freq: {SAMPLE_RATE}");
 
                 // Pass the raw microphone samples to the UnifiedAudioRecorder if it's active in the scene.
                 if (UnifiedAudioRecorder.Instance != null)
