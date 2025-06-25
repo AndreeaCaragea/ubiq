@@ -20,9 +20,9 @@ namespace Ubiq.Voip.Implementations.Dotnet
     {
         // IAudioSource implementation starts
         // Thread safe and can be called before Awake() and after OnDestroy()
-        public event EncodedSampleDelegate OnAudioSourceEncodedSample = delegate {};
-        public event RawAudioSampleDelegate OnAudioSourceRawSample = delegate {};
-        public event SourceErrorDelegate OnAudioSourceError = delegate {};
+        public event EncodedSampleDelegate OnAudioSourceEncodedSample = delegate { };
+        public event RawAudioSampleDelegate OnAudioSourceRawSample = delegate { };
+        public event SourceErrorDelegate OnAudioSourceError = delegate { };
         public bool IsAudioSourcePaused() => isPaused;
         public bool HasEncodedAudioSubscribers() => OnAudioSourceEncodedSample != null;
         public void RestrictFormats(Func<AudioFormat, bool> filter) => audioFormatManager?.RestrictFormats(filter);
@@ -32,7 +32,7 @@ namespace Ubiq.Voip.Implementations.Dotnet
         public Task PauseAudio() => QueueTaskOnMainThread(GetPauseAudioTask);
         public Task ResumeAudio() => QueueTaskOnMainThread(GetResumeAudioTask);
         public Task CloseAudio() => QueueTaskOnMainThread(GetCloseAudioTask);
-        public void ExternalAudioSourceRawSample(AudioSamplingRatesEnum samplingRate, uint durationMilliseconds, short[] sample) => OnAudioSourceRawSample.Invoke(samplingRate,durationMilliseconds,sample);
+        public void ExternalAudioSourceRawSample(AudioSamplingRatesEnum samplingRate, uint durationMilliseconds, short[] sample) => OnAudioSourceRawSample.Invoke(samplingRate, durationMilliseconds, sample);
         // IAudioSource implementation ends
 
         private class MicrophoneListener
@@ -47,9 +47,9 @@ namespace Ubiq.Voip.Implementations.Dotnet
 
             public float[] samples { get; private set; }
 
-            public bool IsRecording () => audioClip != null;
+            public bool IsRecording() => audioClip != null;
 
-            private void UpdateMicrophonePosition ()
+            private void UpdateMicrophonePosition()
             {
                 if (!IsRecording())
                 {
@@ -72,7 +72,7 @@ namespace Ubiq.Voip.Implementations.Dotnet
                 }
             }
 
-            public bool HasSamples ()
+            public bool HasSamples()
             {
                 if (!IsRecording())
                 {
@@ -90,12 +90,12 @@ namespace Ubiq.Voip.Implementations.Dotnet
                     return false;
                 }
 
-                audioClip.GetData(samples,absReadPos % audioClip.samples);
+                audioClip.GetData(samples, absReadPos % audioClip.samples);
                 absReadPos += samples.Length;
                 return true;
             }
 
-            public void Start (string deviceName, int micBuffLengthSeconds,
+            public void Start(string deviceName, int micBuffLengthSeconds,
                 int frequency, int outBuffLengthSamples)
             {
                 if (IsRecording())
@@ -110,12 +110,12 @@ namespace Ubiq.Voip.Implementations.Dotnet
                     samples = new float[outBuffLengthSamples];
                 }
 
-                audioClip = Microphone.Start(deviceName,loop:true,
-                    micBuffLengthSeconds,frequency);
+                audioClip = Microphone.Start(deviceName, loop: true,
+                    micBuffLengthSeconds, frequency);
                 absMicPos = absReadPos = lastMicPos = Microphone.GetPosition(deviceName);
             }
 
-            public void End ()
+            public void End()
             {
                 if (audioClip)
                 {
@@ -152,7 +152,7 @@ namespace Ubiq.Voip.Implementations.Dotnet
             G722AudioEncoder.GetEncodedByteLength(SAMPLE_BUFFER_LENGTH)];
 
         // G722 has a sample rate of 16000 but a clock rate of 8000
-        private const int RTP_TIMESTAMP_PER_BUFFER = SAMPLE_BUFFER_LENGTH/2;
+        private const int RTP_TIMESTAMP_PER_BUFFER = SAMPLE_BUFFER_LENGTH / 2;
 
 #if UNITY_ANDROID && !UNITY_EDITOR
         private bool microphoneAuthorized = false;
@@ -220,45 +220,48 @@ namespace Ubiq.Voip.Implementations.Dotnet
             }
 
             // Send samples if we have them
+            // This is the core loop where microphone samples are read and processed by Ubiq.
             while (microphoneListener.Advance())
             {
                 // ********* START OF MODIFICATION FOR UNIFIED AUDIO RECORDER *********
-                // This Debug.Log will help confirm data is flowing from Ubiq's microphone source.
-                // It will appear in your in-game VR console.
-                //Debug.Log($"Ubiq Mic Source: Samples available. Length: {microphoneListener.samples.Length}, Channels: {microphoneListener.audioClip.channels}, Freq: {SAMPLE_RATE}");
+                // This Debug.Log will confirm if Ubiq's microphone listener is actively providing samples.
+                // It will appear in your in-game VR console if correctly implemented.
+                Debug.Log($"Ubiq Mic Source: Samples available. Length: {microphoneListener.samples.Length}, Channels: {microphoneListener.audioClip.channels}, Freq: {SAMPLE_RATE}");
 
-                // Pass the raw microphone samples to the UnifiedAudioRecorder if it's active in the scene.
+                // Pass the raw microphone samples to the UnifiedAudioRecorder.
+                // This is the critical line that sends the data to your separate recording script.
                 if (UnifiedAudioRecorder.Instance != null)
                 {
                     UnifiedAudioRecorder.Instance.AppendSamples(
                         microphoneListener.samples,
-                        microphoneListener.audioClip.channels, // Use the actual channel count from Ubiq's AudioClip
-                        SAMPLE_RATE); // Use Ubiq's defined sample rate (16000 Hz)
+                        microphoneListener.audioClip.channels, // Use the actual channel count from Ubiq's AudioClip (usually 1 for mono)
+                        SAMPLE_RATE); // Use Ubiq's defined sample rate (16000 Hz for G722)
                 }
                 // ********* END OF MODIFICATION FOR UNIFIED AUDIO RECORDER *********
 
+                // Original Ubiq logic for processing and encoding samples:
                 var volumeSum = 0.0f;
                 for (int i = 0; i < microphoneListener.samples.Length; i++)
                 {
                     var floatSample = microphoneListener.samples[i];
-                    floatSample = Mathf.Clamp(floatSample*gain,-.999f,.999f);
+                    floatSample = Mathf.Clamp(floatSample * gain, -.999f, .999f);
                     pcm[i] = (short)(floatSample * short.MaxValue);
                 }
 
-                audioEncoder.Encode(encoded,pcm);
-                OnAudioSourceEncodedSample.Invoke(RTP_TIMESTAMP_PER_BUFFER,encoded);
+                audioEncoder.Encode(encoded, pcm);
+                OnAudioSourceEncodedSample.Invoke(RTP_TIMESTAMP_PER_BUFFER, encoded);
                 statsPushed?.Invoke(new AudioStats
                 (
-                    sampleCount:microphoneListener.samples.Length,
-                    volumeSum:volumeSum,
-                    sampleRate:SAMPLE_RATE
+                    sampleCount: microphoneListener.samples.Length,
+                    volumeSum: volumeSum,
+                    sampleRate: SAMPLE_RATE
                 ));
             }
         }
 
         // Thread-safe task queue - tasks eventually get executed synchronously on
         // the main thread in Update.
-        private Task QueueTaskOnMainThread (Func<Task> taskGetter)
+        private Task QueueTaskOnMainThread(Func<Task> taskGetter)
         {
             lock (taskLock)
             {
@@ -274,7 +277,7 @@ namespace Ubiq.Voip.Implementations.Dotnet
                     // Queue is discarded when object is destroyed, so this task
                     // may never be run. Returning a WhenAny means those awaiting
                     // these tasks won't wait forever, as the all-task is completed
-                    return Task.WhenAny(allTaskTcs.Task,task);
+                    return Task.WhenAny(allTaskTcs.Task, task);
                 }
             }
         }
@@ -284,7 +287,7 @@ namespace Ubiq.Voip.Implementations.Dotnet
             return new Task(() =>
             {
                 // Null means use the default recording device
-                microphoneListener.Start(null,10,16000,512);
+                microphoneListener.Start(null, 10, 16000, 512);
 
                 // Microphone.GetDeviceCaps(null, out var minFreq, out var maxFreq);
                 // Debug.Log("caps: min: " + minFreq + " max: " + maxFreq);
