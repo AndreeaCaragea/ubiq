@@ -222,12 +222,26 @@ namespace Ubiq.Voip.Implementations.Dotnet
             // Send samples if we have them
             while (microphoneListener.Advance())
             {
+                // ********* START OF MODIFICATION FOR UNIFIED AUDIO RECORDER *********
+                // This Debug.Log will help confirm data is flowing from Ubiq's microphone source.
+                // It will appear in your in-game VR console.
+                Debug.Log($"Ubiq Mic Source: Samples available. Length: {microphoneListener.samples.Length}, Channels: {microphoneListener.audioClip.channels}, Freq: {SAMPLE_RATE}");
+
+                // Pass the raw microphone samples to the UnifiedAudioRecorder if it's active in the scene.
+                if (UnifiedAudioRecorder.Instance != null)
+                {
+                    UnifiedAudioRecorder.Instance.AppendSamples(
+                        microphoneListener.samples,
+                        microphoneListener.audioClip.channels, // Use the actual channel count from Ubiq's AudioClip
+                        SAMPLE_RATE); // Use Ubiq's defined sample rate (16000 Hz)
+                }
+                // ********* END OF MODIFICATION FOR UNIFIED AUDIO RECORDER *********
+
                 var volumeSum = 0.0f;
                 for (int i = 0; i < microphoneListener.samples.Length; i++)
                 {
                     var floatSample = microphoneListener.samples[i];
                     floatSample = Mathf.Clamp(floatSample*gain,-.999f,.999f);
-                    volumeSum += floatSample;
                     pcm[i] = (short)(floatSample * short.MaxValue);
                 }
 
